@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Restroom Locator</title>
+    <title>Advanced AR Restroom Locator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ar.js/2.2.2/aframe-ar.min.js"></script>
     <style>
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             background: #000;
             overflow: hidden;
         }
@@ -29,63 +29,133 @@
             top: 20px;
             left: 20px;
             right: 20px;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             color: white;
-            padding: 15px;
-            border-radius: 10px;
+            padding: 20px;
+            border-radius: 15px;
             pointer-events: auto;
             z-index: 1000;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .distance-info {
-            font-size: 18px;
+            font-size: 24px;
             font-weight: bold;
             margin-bottom: 10px;
+            text-align: center;
+            animation: pulse 2s infinite;
         }
         
         .direction-info {
-            font-size: 14px;
-            opacity: 0.8;
+            font-size: 16px;
+            opacity: 0.9;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            width: 0%;
         }
         
         .arrow-container {
             position: fixed;
-            bottom: 100px;
+            bottom: 120px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
         }
         
         .direction-arrow {
-            width: 80px;
-            height: 80px;
-            background: rgba(255, 255, 255, 0.9);
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 30px;
-            transition: transform 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            font-size: 40px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            animation: glow 2s infinite alternate;
+        }
+        
+        .direction-arrow.close {
+            animation: bounce 0.8s infinite;
+            background: linear-gradient(135deg, #FF5722, #FF7043);
+            box-shadow: 0 8px 25px rgba(255, 87, 34, 0.4);
+        }
+        
+        .direction-arrow.arrived {
+            animation: celebration 1s infinite;
+            background: linear-gradient(135deg, #4CAF50, #8BC34A);
+            transform: scale(1.2);
+        }
+        
+        .restroom-icon {
+            position: fixed;
+            z-index: 1001;
+            font-size: 60px;
+            color: #4CAF50;
+            text-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+            animation: float 3s ease-in-out infinite;
+            pointer-events: none;
+        }
+        
+        .restroom-icon.pulse {
+            animation: float 3s ease-in-out infinite, iconPulse 1.5s infinite;
+        }
+        
+        .arrival-celebration {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1002;
+            text-align: center;
+            color: #4CAF50;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 0 0 30px rgba(76, 175, 80, 0.8);
+            animation: celebration 2s infinite;
+            display: none;
         }
         
         .start-button {
             position: fixed;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: #4CAF50;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
             color: white;
             border: none;
-            padding: 15px 30px;
-            border-radius: 25px;
-            font-size: 16px;
+            padding: 18px 40px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
             cursor: pointer;
             z-index: 1000;
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+            transition: all 0.3s ease;
         }
         
         .start-button:hover {
-            background: #45a049;
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.6);
         }
         
         .camera-view {
@@ -109,24 +179,109 @@
             left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            font-size: 18px;
+            font-size: 20px;
             z-index: 1000;
+            text-align: center;
+        }
+        
+        .step-counter {
+            position: fixed;
+            top: 140px;
+            left: 20px;
+            right: 20px;
+            text-align: center;
+            color: white;
+            font-size: 14px;
+            z-index: 1000;
+        }
+        
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 500;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #4CAF50;
+            border-radius: 50%;
+            animation: particle-float 4s infinite linear;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        @keyframes glow {
+            0% { box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4); }
+            100% { box-shadow: 0 8px 35px rgba(76, 175, 80, 0.8); }
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes celebration {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.1) rotate(5deg); }
+            75% { transform: scale(1.1) rotate(-5deg); }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+        
+        @keyframes iconPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        
+        @keyframes particle-float {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
         }
     </style>
 </head>
 <body>
     <div id="loading" class="loading">
-        Loading AR Camera...
+        <div>🚀 Loading AR Camera...</div>
+        <div style="font-size: 14px; margin-top: 10px;">Please allow camera access</div>
     </div>
     
     <div class="camera-view">
         <video id="video" autoplay playsinline></video>
     </div>
     
+    <div class="particles" id="particles"></div>
+    
     <div class="ar-overlay">
         <div class="info-panel">
             <div class="distance-info" id="distance">🚻 Restroom: 30.4m away</div>
             <div class="direction-info" id="direction">Point your phone toward the restroom</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress"></div>
+            </div>
+        </div>
+        
+        <div class="step-counter" id="stepCounter">
+            Steps taken: 0 | Speed: 0 m/s
         </div>
         
         <div class="arrow-container">
@@ -134,20 +289,38 @@
                 ➤
             </div>
         </div>
+        
+        <div class="restroom-icon" id="restroomIcon">🚻</div>
     </div>
     
-    <button class="start-button" id="startBtn" onclick="startAR()">Start AR Navigation</button>
+    <div class="arrival-celebration" id="celebration">
+        🎉 ARRIVED! 🎉<br>
+        <div style="font-size: 24px; margin-top: 10px;">Welcome to the restroom!</div>
+    </div>
+    
+    <button class="start-button" id="startBtn" onclick="startAR()">🚀 Start AR Navigation</button>
 
     <script>
         let isARActive = false;
         let deviceOrientation = 0;
         let targetAngle = 0;
+        let currentDistance = 0;
+        let initialDistance = 0;
+        let stepCount = 0;
+        let lastPosition = null;
+        let lastTime = Date.now();
+        let currentSpeed = 0;
+        let hasArrived = false;
         
         // Lecture hall dimensions: 30m x 13m
         // User position: (0, 0) - entrance
         // Restroom position: (28, 5) - near far end, slightly right
-        const userPosition = { x: 0, y: 0 };
+        let userPosition = { x: 0, y: 0 };
         const restroomPosition = { x: 28, y: 5 };
+        
+        // Simulate walking by gradually moving user toward restroom
+        let walkingSimulation = false;
+        let walkingInterval = null;
         
         // Calculate target angle and distance
         function calculateTargetAngle() {
@@ -169,12 +342,140 @@
             return Math.sqrt(deltaX * deltaX + deltaY * deltaY);
         }
         
-        // Initialize target angle
-        targetAngle = calculateTargetAngle();
-        const distance = calculateDistance();
+        // Initialize values
+        function initializeValues() {
+            targetAngle = calculateTargetAngle();
+            currentDistance = calculateDistance();
+            initialDistance = currentDistance;
+            updateDisplay();
+        }
         
-        // Update distance display
-        document.getElementById('distance').textContent = `🚻 Restroom: ${distance.toFixed(1)}m away`;
+        // Update all display elements
+        function updateDisplay() {
+            const distanceEl = document.getElementById('distance');
+            const progressEl = document.getElementById('progress');
+            const stepEl = document.getElementById('stepCounter');
+            
+            distanceEl.textContent = `🚻 Restroom: ${currentDistance.toFixed(1)}m away`;
+            
+            // Update progress bar
+            const progress = Math.max(0, Math.min(100, ((initialDistance - currentDistance) / initialDistance) * 100));
+            progressEl.style.width = progress + '%';
+            
+            // Update step counter
+            stepEl.textContent = `Steps taken: ${stepCount} | Speed: ${currentSpeed.toFixed(1)} m/s`;
+            
+            // Position restroom icon
+            positionRestroomIcon();
+            
+            // Check for arrival
+            if (currentDistance <= 2.0 && !hasArrived) {
+                triggerArrival();
+            }
+        }
+        
+        // Position the restroom icon on screen
+        function positionRestroomIcon() {
+            const icon = document.getElementById('restroomIcon');
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            
+            // Calculate relative position based on distance and angle
+            const relativeAngle = targetAngle - deviceOrientation;
+            const normalizedAngle = ((relativeAngle + 360) % 360) - 180;
+            
+            // Position icon based on angle and distance
+            const x = screenWidth / 2 + (normalizedAngle * 2);
+            const y = screenHeight / 2 - (Math.max(0, 100 - currentDistance * 2));
+            
+            icon.style.left = Math.max(20, Math.min(screenWidth - 80, x)) + 'px';
+            icon.style.top = Math.max(200, Math.min(screenHeight - 200, y)) + 'px';
+            
+            // Add pulse effect when close
+            if (currentDistance <= 10) {
+                icon.classList.add('pulse');
+            } else {
+                icon.classList.remove('pulse');
+            }
+        }
+        
+        // Trigger arrival celebration
+        function triggerArrival() {
+            hasArrived = true;
+            const celebration = document.getElementById('celebration');
+            const arrow = document.getElementById('arrow');
+            const distanceEl = document.getElementById('distance');
+            
+            celebration.style.display = 'block';
+            arrow.classList.add('arrived');
+            arrow.textContent = '🎉';
+            
+            distanceEl.textContent = '🎉 DESTINATION REACHED! 🎉';
+            distanceEl.style.color = '#4CAF50';
+            
+            // Create celebration particles
+            createCelebrationParticles();
+            
+            // Play celebration sound (if available)
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance('Congratulations! You have arrived at the restroom!');
+                speechSynthesis.speak(utterance);
+            }
+        }
+        
+        // Create celebration particle effects
+        function createCelebrationParticles() {
+            const particles = document.getElementById('particles');
+            
+            for (let i = 0; i < 30; i++) {
+                setTimeout(() => {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = Math.random() * 100 + '%';
+                    particle.style.backgroundColor = ['#4CAF50', '#FF5722', '#2196F3', '#FFC107'][Math.floor(Math.random() * 4)];
+                    particle.style.animationDelay = Math.random() * 2 + 's';
+                    particles.appendChild(particle);
+                    
+                    setTimeout(() => {
+                        particle.remove();
+                    }, 4000);
+                }, i * 100);
+            }
+        }
+        
+        // Simulate walking movement
+        function startWalkingSimulation() {
+            if (walkingInterval) return;
+            
+            walkingInterval = setInterval(() => {
+                if (hasArrived) {
+                    clearInterval(walkingInterval);
+                    return;
+                }
+                
+                // Simulate movement toward restroom
+                const deltaX = restroomPosition.x - userPosition.x;
+                const deltaY = restroomPosition.y - userPosition.y;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                
+                if (distance > 1) {
+                    // Move 0.5m per second toward restroom
+                    const moveDistance = 0.5;
+                    const ratio = moveDistance / distance;
+                    
+                    userPosition.x += deltaX * ratio;
+                    userPosition.y += deltaY * ratio;
+                    
+                    // Update calculations
+                    targetAngle = calculateTargetAngle();
+                    currentDistance = calculateDistance();
+                    stepCount += 2;
+                    currentSpeed = 1.5; // Simulated walking speed
+                    
+                    updateDisplay();
+                }
+            }, 1000); // Update every second
+        }
         
         // Start AR camera
         async function startAR() {
@@ -197,12 +498,20 @@
                 startBtn.style.display = 'none';
                 isARActive = true;
                 
+                // Initialize values
+                initializeValues();
+                
                 // Start orientation tracking
                 startOrientationTracking();
                 
+                // Start walking simulation after 3 seconds
+                setTimeout(() => {
+                    startWalkingSimulation();
+                }, 3000);
+                
             } catch (error) {
                 console.error('Error accessing camera:', error);
-                loading.textContent = 'Camera access denied. Please allow camera access.';
+                loading.textContent = 'Camera access denied. Please allow camera access and reload.';
             }
         }
         
@@ -237,24 +546,39 @@
             
             // Update arrow rotation
             const arrow = document.getElementById('arrow');
-            arrow.style.transform = `rotate(${relativeAngle}deg)`;
+            if (!hasArrived) {
+                arrow.style.transform = `rotate(${relativeAngle}deg)`;
+            }
             
             // Update direction info
             const directionText = document.getElementById('direction');
             const absAngle = Math.abs(relativeAngle);
             
-            if (absAngle < 15) {
-                directionText.textContent = '✅ Restroom straight ahead!';
+            if (hasArrived) {
+                directionText.textContent = '🎉 Enjoy your visit! 🎉';
+                directionText.style.color = '#4CAF50';
+            } else if (absAngle < 15) {
+                directionText.textContent = '✅ Restroom straight ahead! Keep walking!';
                 directionText.style.color = '#4CAF50';
             } else if (absAngle < 45) {
                 const direction = relativeAngle > 0 ? 'slightly right' : 'slightly left';
-                directionText.textContent = `Turn ${direction}`;
+                directionText.textContent = `Turn ${direction} and keep walking`;
                 directionText.style.color = '#FFC107';
             } else {
                 const direction = relativeAngle > 0 ? 'right' : 'left';
-                directionText.textContent = `Turn ${direction}`;
+                directionText.textContent = `Turn ${direction} to face the restroom`;
                 directionText.style.color = '#FF5722';
             }
+            
+            // Update arrow style based on distance
+            if (currentDistance <= 10 && !hasArrived) {
+                arrow.classList.add('close');
+            } else {
+                arrow.classList.remove('close');
+            }
+            
+            // Update icon position
+            positionRestroomIcon();
         }
         
         // Request device orientation permission for iOS
@@ -288,6 +612,9 @@
                 requestOrientationPermission();
             }
         });
+        
+        // Initialize on load
+        initializeValues();
     </script>
 </body>
 </html>
