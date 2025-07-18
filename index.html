@@ -1,81 +1,83 @@
 <!DOCTYPE html>
 <html>
   <head>
-  <title>AR Restroom Locator (Marker)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
-  <!-- ✅ A-Frame & AR.js (Working CDN links) -->
-  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.2/aframe/build/aframe-ar.min.js"></script>
-  
-  <!-- Prevent favicon 404 -->
-  <link rel="icon" href="data:," />
+    <title>AR Restroom Locator (Marker)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <style>
-    .distance-label {
-      position: fixed;
-      bottom: 20px;
-      width: 100%;
-      text-align: center;
-      font-size: 1.5em;
-      font-weight: bold;
-      color: white;
-      background: rgba(0, 0, 0, 0.5);
-      padding: 10px;
-      z-index: 10;
-    }
-  </style>
-</head>
+    <!-- A-Frame and AR.js -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.2/aframe/build/aframe-ar.min.js"></script>
+
+    <link rel="icon" href="data:," />
+    <style>
+      .distance-label {
+        position: fixed;
+        bottom: 20px;
+        width: 100%;
+        text-align: center;
+        font-size: 1.5em;
+        font-weight: bold;
+        color: white;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        z-index: 10;
+      }
+    </style>
+  </head>
 
   <body style="margin: 0; overflow: hidden;">
     <a-scene
       embedded
       arjs="sourceType: webcam; detectionMode: mono;"
       vr-mode-ui="enabled: false"
+      renderer="logarithmicDepthBuffer: true;"
     >
-      <!-- Marker for triggering AR -->
+      <!-- Marker -->
       <a-marker preset="hiro">
-        <a-box
+        <!-- Restroom Icon Model -->
+        <a-gltf-model
           id="arrow"
-          position="0 0.5 0"
-          color="#00B78E"
-          depth="2"
-          height="0.5"
-          width="0.5"
-        ></a-box>
+          src="https://cdn.jsdelivr.net/gh/abdulbasith-dev/assets@main/models/restroom.glb"
+          position="0 0 -2"
+          rotation="0 0 0"
+          scale="1 1 1"
+        ></a-gltf-model>
       </a-marker>
 
-      <!-- Basic camera -->
+      <!-- Camera -->
       <a-entity camera></a-entity>
     </a-scene>
 
     <div class="distance-label" id="distanceLabel">Restroom: 30.4m ➤</div>
-    <!-- COMPASS + DIRECTION LOGIC -->
-<script>
-  window.addEventListener('load', () => {
-    const arrow = document.querySelector('#arrow');
-    const distanceLabel = document.getElementById('distanceLabel');
 
-    // Coordinates of restroom relative to start
-    const restroomPosition = { x: 30, y: 5 };
+    <!-- JS: Compass & Rotation Logic -->
+    <script>
+      window.addEventListener("load", () => {
+        const arrow = document.querySelector("#arrow");
+        const distanceLabel = document.getElementById("distanceLabel");
 
-    // Angle & distance calculation
-    const angleRadians = Math.atan2(restroomPosition.y, restroomPosition.x);
-    const angleDegrees = angleRadians * (180 / Math.PI);
-    const distance = Math.sqrt(restroomPosition.x ** 2 + restroomPosition.y ** 2);
+        const restroomPosition = { x: 30, y: 5 };
+        const angleRadians = Math.atan2(restroomPosition.y, restroomPosition.x);
+        const angleDegrees = angleRadians * (180 / Math.PI);
+        const distance = Math.sqrt(
+          restroomPosition.x ** 2 + restroomPosition.y ** 2
+        );
 
-    distanceLabel.innerText = `Restroom: ${distance.toFixed(1)}m ➤`;
+        distanceLabel.innerText = `Restroom: ${distance.toFixed(1)}m ➤`;
 
-    // Compass heading
-    window.addEventListener('deviceorientationabsolute', (event) => {
-      const heading = event.alpha;
-      if (heading !== null && arrow) {
-        const rotation = angleDegrees - heading;
-        arrow.setAttribute('rotation', `0 ${rotation.toFixed(1)} 0`);
-      }
-    }, true);
-  });
-</script>
-
+        window.addEventListener(
+          "deviceorientationabsolute",
+          (event) => {
+            const heading = event.alpha;
+            if (heading !== null && arrow) {
+              let rotation = angleDegrees - heading;
+              rotation = (rotation + 360) % 360;
+              arrow.setAttribute("rotation", `0 ${rotation.toFixed(1)} 0`);
+            }
+          },
+          true
+        );
+      });
+    </script>
   </body>
 </html>
