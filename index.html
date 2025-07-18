@@ -1,34 +1,32 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>AR Restroom Locator (Marker)</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
-    <!-- A-Frame and AR.js -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://rawcdn.githack.com/AR-js-org/AR.js/3.3.2/aframe/build/aframe-ar.min.js"></script>
-    
-    <!-- Compass & arrow logic -->
-    <!-- <script defer src="script.js"></script> -->
+  <title>AR Restroom Locator (Marker)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- ✅ A-Frame & AR.js (Working CDN links) -->
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.2/aframe/build/aframe-ar.min.js"></script>
+  
+  <!-- Prevent favicon 404 -->
+  <link rel="icon" href="data:," />
 
-    <!-- Optional: prevent favicon error -->
-    <link rel="icon" href="data:," />
+  <style>
+    .distance-label {
+      position: fixed;
+      bottom: 20px;
+      width: 100%;
+      text-align: center;
+      font-size: 1.5em;
+      font-weight: bold;
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      z-index: 10;
+    }
+  </style>
+</head>
 
-    <style>
-      .distance-label {
-        position: fixed;
-        bottom: 20px;
-        width: 100%;
-        text-align: center;
-        font-size: 1.5em;
-        font-weight: bold;
-        color: white;
-        background: rgba(0, 0, 0, 0.5);
-        padding: 10px;
-        z-index: 10;
-      }
-    </style>
-  </head>
   <body style="margin: 0; overflow: hidden;">
     <a-scene
       embedded
