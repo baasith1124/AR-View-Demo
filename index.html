@@ -17,9 +17,10 @@
   </head>
   <body style="margin:0; overflow:hidden">
     <a-scene embedded arjs="sourceType: webcam; detectionMode: mono;" vr-mode-ui="enabled: false">
-      <a-marker type="pattern" url="pattern-abc.patt">
+      <a-marker type="barcode" value="5">
         <a-box id="arrow" position="0 1 -2" color="#00B78E" depth="2" height="0.5" width="0.5"></a-box>
       </a-marker>
+
       <a-entity camera></a-entity>
     </a-scene>
 
