@@ -3,618 +3,644 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced AR Restroom Locator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.0/aframe.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ar.js/2.2.2/aframe-ar.min.js"></script>
+    <title>Real AR Restroom Locator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body {
             margin: 0;
-            font-family: 'Arial', sans-serif;
+            padding: 0;
             background: #000;
             overflow: hidden;
+            font-family: 'Arial', sans-serif;
         }
         
-        .ar-overlay {
-            position: fixed;
+        #video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: 1;
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        .ui-overlay {
+            position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
+            z-index: 3;
             pointer-events: none;
-            z-index: 999;
         }
         
         .info-panel {
-            position: fixed;
+            position: absolute;
             top: 20px;
             left: 20px;
             right: 20px;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
             color: white;
             padding: 20px;
             border-radius: 15px;
-            pointer-events: auto;
-            z-index: 1000;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
         }
         
-        .distance-info {
-            font-size: 24px;
+        .distance-display {
+            font-size: 28px;
             font-weight: bold;
+            text-align: center;
             margin-bottom: 10px;
-            text-align: center;
-            animation: pulse 2s infinite;
+            color: #00ffff;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
         }
         
-        .direction-info {
+        .direction-display {
             font-size: 16px;
-            opacity: 0.9;
             text-align: center;
-            transition: all 0.3s ease;
+            margin-bottom: 15px;
+            color: #ffffff;
         }
         
-        .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 3px;
-            margin-top: 10px;
-            overflow: hidden;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #8BC34A);
-            border-radius: 3px;
-            transition: width 0.5s ease;
-            width: 0%;
-        }
-        
-        .arrow-container {
-            position: fixed;
-            bottom: 120px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-        }
-        
-        .direction-arrow {
+        .compass-container {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
             width: 100px;
             height: 100px;
-            background: linear-gradient(135deg, #4CAF50, #45a049);
+            border: 3px solid rgba(0, 255, 255, 0.5);
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
-            border: 3px solid rgba(255, 255, 255, 0.8);
-            animation: glow 2s infinite alternate;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
         }
         
-        .direction-arrow.close {
-            animation: bounce 0.8s infinite;
-            background: linear-gradient(135deg, #FF5722, #FF7043);
-            box-shadow: 0 8px 25px rgba(255, 87, 34, 0.4);
+        .compass-needle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 40px;
+            background: linear-gradient(to top, #ff0000, #ff6666);
+            transform-origin: bottom center;
+            transform: translate(-50%, -100%);
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
         }
         
-        .direction-arrow.arrived {
-            animation: celebration 1s infinite;
-            background: linear-gradient(135deg, #4CAF50, #8BC34A);
-            transform: scale(1.2);
-        }
-        
-        .restroom-icon {
-            position: fixed;
-            z-index: 1001;
-            font-size: 60px;
-            color: #4CAF50;
-            text-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
-            animation: float 3s ease-in-out infinite;
-            pointer-events: none;
-        }
-        
-        .restroom-icon.pulse {
-            animation: float 3s ease-in-out infinite, iconPulse 1.5s infinite;
-        }
-        
-        .arrival-celebration {
-            position: fixed;
+        .compass-labels {
+            position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 1002;
-            text-align: center;
-            color: #4CAF50;
-            font-size: 48px;
+            width: 80px;
+            height: 80px;
+            color: white;
+            font-size: 12px;
             font-weight: bold;
-            text-shadow: 0 0 30px rgba(76, 175, 80, 0.8);
-            animation: celebration 2s infinite;
-            display: none;
+        }
+        
+        .compass-n { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); }
+        .compass-e { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); }
+        .compass-s { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); }
+        .compass-w { position: absolute; left: 5px; top: 50%; transform: translateY(-50%); }
+        
+        .navigation-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid rgba(0, 255, 0, 0.3);
+            text-align: center;
+        }
+        
+        .coordinates {
+            font-size: 14px;
+            margin-top: 10px;
+            color: #888;
         }
         
         .start-button {
-            position: fixed;
-            bottom: 30px;
+            position: absolute;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
-            background: linear-gradient(135deg, #4CAF50, #45a049);
+            background: linear-gradient(45deg, #00ffff, #0080ff);
             color: white;
             border: none;
-            padding: 18px 40px;
-            border-radius: 30px;
+            padding: 15px 30px;
+            border-radius: 25px;
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
-            z-index: 1000;
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+            pointer-events: auto;
+            box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
             transition: all 0.3s ease;
         }
         
         .start-button:hover {
-            transform: translateX(-50%) translateY(-2px);
-            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.6);
-        }
-        
-        .camera-view {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 1;
-        }
-        
-        #video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 255, 255, 0.5);
         }
         
         .loading {
-            position: fixed;
+            position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             color: white;
             font-size: 20px;
-            z-index: 1000;
             text-align: center;
+            z-index: 10;
         }
         
-        .step-counter {
-            position: fixed;
-            top: 140px;
-            left: 20px;
-            right: 20px;
-            text-align: center;
-            color: white;
-            font-size: 14px;
-            z-index: 1000;
-        }
-        
-        .particles {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            pointer-events: none;
-            z-index: 500;
-        }
-        
-        .particle {
+        .arrived-message {
             position: absolute;
-            width: 4px;
-            height: 4px;
-            background: #4CAF50;
-            border-radius: 50%;
-            animation: particle-float 4s infinite linear;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 255, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+            z-index: 10;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
         }
         
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+            50% { opacity: 0.6; }
         }
         
         @keyframes glow {
-            0% { box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4); }
-            100% { box-shadow: 0 8px 35px rgba(76, 175, 80, 0.8); }
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(0, 255, 255, 0.8); }
         }
         
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        
-        @keyframes celebration {
-            0%, 100% { transform: scale(1) rotate(0deg); }
-            25% { transform: scale(1.1) rotate(5deg); }
-            75% { transform: scale(1.1) rotate(-5deg); }
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
-        }
-        
-        @keyframes iconPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-        }
-        
-        @keyframes particle-float {
-            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
-        }
-        
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
+        .pulse { animation: pulse 2s infinite; }
+        .glow { animation: glow 2s infinite; }
     </style>
 </head>
 <body>
     <div id="loading" class="loading">
-        <div>🚀 Loading AR Camera...</div>
-        <div style="font-size: 14px; margin-top: 10px;">Please allow camera access</div>
+        <div>🚀 Initializing AR Camera...</div>
+        <div style="font-size: 14px; margin-top: 10px;">Please allow camera and location access</div>
     </div>
     
-    <div class="camera-view">
-        <video id="video" autoplay playsinline></video>
-    </div>
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
     
-    <div class="particles" id="particles"></div>
-    
-    <div class="ar-overlay">
+    <div class="ui-overlay">
         <div class="info-panel">
-            <div class="distance-info" id="distance">🚻 Restroom: 30.4m away</div>
-            <div class="direction-info" id="direction">Point your phone toward the restroom</div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progress"></div>
+            <div class="distance-display" id="distanceDisplay">🚻 Restroom: Locating...</div>
+            <div class="direction-display" id="directionDisplay">Initializing compass...</div>
+        </div>
+        
+        <div class="compass-container" id="compassContainer">
+            <div class="compass-needle" id="compassNeedle"></div>
+            <div class="compass-labels">
+                <div class="compass-n">N</div>
+                <div class="compass-e">E</div>
+                <div class="compass-s">S</div>
+                <div class="compass-w">W</div>
             </div>
         </div>
         
-        <div class="step-counter" id="stepCounter">
-            Steps taken: 0 | Speed: 0 m/s
+        <div class="navigation-info" id="navigationInfo">
+            <div>Move your phone to look around</div>
+            <div class="coordinates" id="coordinates">Waiting for GPS...</div>
         </div>
         
-        <div class="arrow-container">
-            <div class="direction-arrow" id="arrow">
-                ➤
-            </div>
-        </div>
-        
-        <div class="restroom-icon" id="restroomIcon">🚻</div>
+        <button class="start-button" id="startButton" onclick="startAR()">🚀 Start AR Navigation</button>
     </div>
     
-    <div class="arrival-celebration" id="celebration">
+    <div class="arrived-message" id="arrivedMessage">
         🎉 ARRIVED! 🎉<br>
-        <div style="font-size: 24px; margin-top: 10px;">Welcome to the restroom!</div>
+        <div style="font-size: 16px; margin-top: 10px;">Welcome to the restroom!</div>
     </div>
-    
-    <button class="start-button" id="startBtn" onclick="startAR()">🚀 Start AR Navigation</button>
 
     <script>
-        let isARActive = false;
-        let deviceOrientation = 0;
-        let targetAngle = 0;
-        let currentDistance = 0;
-        let initialDistance = 0;
-        let stepCount = 0;
-        let lastPosition = null;
-        let lastTime = Date.now();
-        let currentSpeed = 0;
-        let hasArrived = false;
-        
-        // Lecture hall dimensions: 30m x 13m
-        // User position: (0, 0) - entrance
-        // Restroom position: (28, 5) - near far end, slightly right
-        let userPosition = { x: 0, y: 0 };
-        const restroomPosition = { x: 28, y: 5 };
-        
-        // Simulate walking by gradually moving user toward restroom
-        let walkingSimulation = false;
-        let walkingInterval = null;
-        
-        // Calculate target angle and distance
-        function calculateTargetAngle() {
-            const deltaX = restroomPosition.x - userPosition.x;
-            const deltaY = restroomPosition.y - userPosition.y;
-            
-            // Calculate angle in degrees (0 = north, 90 = east)
-            let angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
-            
-            // Convert to compass heading (0 = north, 90 = east)
-            angle = (angle + 360) % 360;
-            
-            return angle;
-        }
-        
-        function calculateDistance() {
-            const deltaX = restroomPosition.x - userPosition.x;
-            const deltaY = restroomPosition.y - userPosition.y;
-            return Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        }
-        
-        // Initialize values
-        function initializeValues() {
-            targetAngle = calculateTargetAngle();
-            currentDistance = calculateDistance();
-            initialDistance = currentDistance;
-            updateDisplay();
-        }
-        
-        // Update all display elements
-        function updateDisplay() {
-            const distanceEl = document.getElementById('distance');
-            const progressEl = document.getElementById('progress');
-            const stepEl = document.getElementById('stepCounter');
-            
-            distanceEl.textContent = `🚻 Restroom: ${currentDistance.toFixed(1)}m away`;
-            
-            // Update progress bar
-            const progress = Math.max(0, Math.min(100, ((initialDistance - currentDistance) / initialDistance) * 100));
-            progressEl.style.width = progress + '%';
-            
-            // Update step counter
-            stepEl.textContent = `Steps taken: ${stepCount} | Speed: ${currentSpeed.toFixed(1)} m/s`;
-            
-            // Position restroom icon
-            positionRestroomIcon();
-            
-            // Check for arrival
-            if (currentDistance <= 2.0 && !hasArrived) {
-                triggerArrival();
-            }
-        }
-        
-        // Position the restroom icon on screen
-        function positionRestroomIcon() {
-            const icon = document.getElementById('restroomIcon');
-            const screenWidth = window.innerWidth;
-            const screenHeight = window.innerHeight;
-            
-            // Calculate relative position based on distance and angle
-            const relativeAngle = targetAngle - deviceOrientation;
-            const normalizedAngle = ((relativeAngle + 360) % 360) - 180;
-            
-            // Position icon based on angle and distance
-            const x = screenWidth / 2 + (normalizedAngle * 2);
-            const y = screenHeight / 2 - (Math.max(0, 100 - currentDistance * 2));
-            
-            icon.style.left = Math.max(20, Math.min(screenWidth - 80, x)) + 'px';
-            icon.style.top = Math.max(200, Math.min(screenHeight - 200, y)) + 'px';
-            
-            // Add pulse effect when close
-            if (currentDistance <= 10) {
-                icon.classList.add('pulse');
-            } else {
-                icon.classList.remove('pulse');
-            }
-        }
-        
-        // Trigger arrival celebration
-        function triggerArrival() {
-            hasArrived = true;
-            const celebration = document.getElementById('celebration');
-            const arrow = document.getElementById('arrow');
-            const distanceEl = document.getElementById('distance');
-            
-            celebration.style.display = 'block';
-            arrow.classList.add('arrived');
-            arrow.textContent = '🎉';
-            
-            distanceEl.textContent = '🎉 DESTINATION REACHED! 🎉';
-            distanceEl.style.color = '#4CAF50';
-            
-            // Create celebration particles
-            createCelebrationParticles();
-            
-            // Play celebration sound (if available)
-            if ('speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance('Congratulations! You have arrived at the restroom!');
-                speechSynthesis.speak(utterance);
-            }
-        }
-        
-        // Create celebration particle effects
-        function createCelebrationParticles() {
-            const particles = document.getElementById('particles');
-            
-            for (let i = 0; i < 30; i++) {
-                setTimeout(() => {
-                    const particle = document.createElement('div');
-                    particle.className = 'particle';
-                    particle.style.left = Math.random() * 100 + '%';
-                    particle.style.backgroundColor = ['#4CAF50', '#FF5722', '#2196F3', '#FFC107'][Math.floor(Math.random() * 4)];
-                    particle.style.animationDelay = Math.random() * 2 + 's';
-                    particles.appendChild(particle);
-                    
-                    setTimeout(() => {
-                        particle.remove();
-                    }, 4000);
-                }, i * 100);
-            }
-        }
-        
-        // Simulate walking movement
-        function startWalkingSimulation() {
-            if (walkingInterval) return;
-            
-            walkingInterval = setInterval(() => {
-                if (hasArrived) {
-                    clearInterval(walkingInterval);
-                    return;
-                }
+        class ARRestroomLocator {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.video = null;
+                this.canvas = null;
                 
-                // Simulate movement toward restroom
-                const deltaX = restroomPosition.x - userPosition.x;
-                const deltaY = restroomPosition.y - userPosition.y;
-                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                // Real device sensors
+                this.currentPosition = { lat: 0, lng: 0, accuracy: 0 };
+                this.deviceOrientation = { alpha: 0, beta: 0, gamma: 0 };
+                this.compassHeading = 0;
                 
-                if (distance > 1) {
-                    // Move 0.5m per second toward restroom
-                    const moveDistance = 0.5;
-                    const ratio = moveDistance / distance;
-                    
-                    userPosition.x += deltaX * ratio;
-                    userPosition.y += deltaY * ratio;
-                    
-                    // Update calculations
-                    targetAngle = calculateTargetAngle();
-                    currentDistance = calculateDistance();
-                    stepCount += 2;
-                    currentSpeed = 1.5; // Simulated walking speed
-                    
-                    updateDisplay();
-                }
-            }, 1000); // Update every second
-        }
-        
-        // Start AR camera
-        async function startAR() {
-            const video = document.getElementById('video');
-            const loading = document.getElementById('loading');
-            const startBtn = document.getElementById('startBtn');
+                // Restroom location (example coordinates - replace with actual)
+                this.restroomLocation = {
+                    lat: 37.7749,  // Replace with actual restroom latitude
+                    lng: -122.4194, // Replace with actual restroom longitude
+                    name: "Main Restroom"
+                };
+                
+                // 3D objects
+                this.restroomMarker = null;
+                this.directionArrow = null;
+                this.pathLine = null;
+                
+                // State
+                this.isActive = false;
+                this.currentDistance = 0;
+                this.targetBearing = 0;
+                this.hasArrived = false;
+                
+                this.init();
+            }
             
-            try {
-                // Request camera access
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    } 
+            init() {
+                this.video = document.getElementById('video');
+                this.canvas = document.getElementById('canvas');
+                this.setupThreeJS();
+                this.setupEventListeners();
+            }
+            
+            setupThreeJS() {
+                // Create scene
+                this.scene = new THREE.Scene();
+                
+                // Create camera
+                this.camera = new THREE.PerspectiveCamera(
+                    75, 
+                    window.innerWidth / window.innerHeight, 
+                    0.1, 
+                    1000
+                );
+                
+                // Create renderer
+                this.renderer = new THREE.WebGLRenderer({ 
+                    canvas: this.canvas,
+                    alpha: true,
+                    antialias: true
                 });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setClearColor(0x000000, 0);
                 
-                video.srcObject = stream;
-                loading.style.display = 'none';
-                startBtn.style.display = 'none';
-                isARActive = true;
+                // Add lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                this.scene.add(ambientLight);
                 
-                // Initialize values
-                initializeValues();
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(0, 1, 0);
+                this.scene.add(directionalLight);
                 
-                // Start orientation tracking
-                startOrientationTracking();
+                this.create3DObjects();
+            }
+            
+            create3DObjects() {
+                // Create restroom marker (3D toilet icon)
+                const markerGeometry = new THREE.BoxGeometry(2, 3, 1);
+                const markerMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x00ffff,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                this.restroomMarker = new THREE.Mesh(markerGeometry, markerMaterial);
+                this.scene.add(this.restroomMarker);
                 
-                // Start walking simulation after 3 seconds
-                setTimeout(() => {
-                    startWalkingSimulation();
-                }, 3000);
+                // Create direction arrow
+                const arrowGeometry = new THREE.ConeGeometry(0.5, 2, 8);
+                const arrowMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+                this.directionArrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+                this.directionArrow.position.set(0, -2, -5);
+                this.scene.add(this.directionArrow);
                 
-            } catch (error) {
-                console.error('Error accessing camera:', error);
-                loading.textContent = 'Camera access denied. Please allow camera access and reload.';
-            }
-        }
-        
-        // Device orientation tracking
-        function startOrientationTracking() {
-            if ('DeviceOrientationEvent' in window) {
-                window.addEventListener('deviceorientation', handleOrientation);
-            } else {
-                document.getElementById('direction').textContent = 'Device orientation not supported';
-            }
-        }
-        
-        function handleOrientation(event) {
-            if (!isARActive) return;
-            
-            // Get device compass heading
-            let heading = event.alpha;
-            if (heading === null) {
-                heading = event.webkitCompassHeading || 0;
+                // Create path line
+                const pathGeometry = new THREE.BufferGeometry();
+                const pathMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0x00ff00,
+                    linewidth: 3
+                });
+                this.pathLine = new THREE.Line(pathGeometry, pathMaterial);
+                this.scene.add(this.pathLine);
             }
             
-            // Normalize heading (0-360)
-            heading = (360 - heading) % 360;
-            deviceOrientation = heading;
-            
-            // Calculate relative angle to target
-            let relativeAngle = targetAngle - heading;
-            
-            // Normalize to -180 to 180
-            if (relativeAngle > 180) relativeAngle -= 360;
-            if (relativeAngle < -180) relativeAngle += 360;
-            
-            // Update arrow rotation
-            const arrow = document.getElementById('arrow');
-            if (!hasArrived) {
-                arrow.style.transform = `rotate(${relativeAngle}deg)`;
-            }
-            
-            // Update direction info
-            const directionText = document.getElementById('direction');
-            const absAngle = Math.abs(relativeAngle);
-            
-            if (hasArrived) {
-                directionText.textContent = '🎉 Enjoy your visit! 🎉';
-                directionText.style.color = '#4CAF50';
-            } else if (absAngle < 15) {
-                directionText.textContent = '✅ Restroom straight ahead! Keep walking!';
-                directionText.style.color = '#4CAF50';
-            } else if (absAngle < 45) {
-                const direction = relativeAngle > 0 ? 'slightly right' : 'slightly left';
-                directionText.textContent = `Turn ${direction} and keep walking`;
-                directionText.style.color = '#FFC107';
-            } else {
-                const direction = relativeAngle > 0 ? 'right' : 'left';
-                directionText.textContent = `Turn ${direction} to face the restroom`;
-                directionText.style.color = '#FF5722';
-            }
-            
-            // Update arrow style based on distance
-            if (currentDistance <= 10 && !hasArrived) {
-                arrow.classList.add('close');
-            } else {
-                arrow.classList.remove('close');
-            }
-            
-            // Update icon position
-            positionRestroomIcon();
-        }
-        
-        // Request device orientation permission for iOS
-        function requestOrientationPermission() {
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(response => {
-                        if (response == 'granted') {
-                            startOrientationTracking();
-                        }
-                    })
-                    .catch(console.error);
-            } else {
-                startOrientationTracking();
-            }
-        }
-        
-        // Auto-start on page load for demo
-        window.addEventListener('load', () => {
-            // Auto-start after 2 seconds for demo
-            setTimeout(() => {
-                if (!isARActive) {
-                    startAR();
+            setupEventListeners() {
+                window.addEventListener('resize', () => this.onWindowResize());
+                
+                // Device orientation
+                if ('DeviceOrientationEvent' in window) {
+                    window.addEventListener('deviceorientation', (e) => this.onDeviceOrientation(e));
                 }
-            }, 2000);
-        });
-        
-        // Handle click to start for iOS
-        document.addEventListener('click', () => {
-            if (!isARActive) {
-                requestOrientationPermission();
+                
+                // Request orientation permission for iOS
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    document.addEventListener('click', () => {
+                        DeviceOrientationEvent.requestPermission()
+                            .then(response => {
+                                if (response !== 'granted') {
+                                    console.warn('Device orientation permission denied');
+                                }
+                            })
+                            .catch(console.error);
+                    });
+                }
             }
-        });
+            
+            async startAR() {
+                try {
+                    // Get user location
+                    await this.getUserLocation();
+                    
+                    // Start camera
+                    await this.startCamera();
+                    
+                    // Start AR tracking
+                    this.startTracking();
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('startButton').style.display = 'none';
+                    this.isActive = true;
+                    
+                } catch (error) {
+                    console.error('Error starting AR:', error);
+                    document.getElementById('loading').innerHTML = 
+                        '<div style="color: red;">Error: ' + error.message + '</div>';
+                }
+            }
+            
+            async getUserLocation() {
+                return new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) {
+                        reject(new Error('Geolocation not supported'));
+                        return;
+                    }
+                    
+                    const options = {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    };
+                    
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            this.currentPosition = {
+                                lat: position.coords.latitude,
+                                lng: position.coords.longitude,
+                                accuracy: position.coords.accuracy
+                            };
+                            
+                            // Calculate initial distance and bearing
+                            this.updateNavigation();
+                            resolve();
+                        },
+                        (error) => {
+                            reject(new Error('Location access denied or unavailable'));
+                        },
+                        options
+                    );
+                    
+                    // Watch position changes
+                    navigator.geolocation.watchPosition(
+                        (position) => {
+                            this.currentPosition = {
+                                lat: position.coords.latitude,
+                                lng: position.coords.longitude,
+                                accuracy: position.coords.accuracy
+                            };
+                            this.updateNavigation();
+                        },
+                        null,
+                        options
+                    );
+                });
+            }
+            
+            async startCamera() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'environment',
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
+                        }
+                    });
+                    
+                    this.video.srcObject = stream;
+                    await this.video.play();
+                    
+                } catch (error) {
+                    throw new Error('Camera access denied');
+                }
+            }
+            
+            startTracking() {
+                this.animate();
+            }
+            
+            onDeviceOrientation(event) {
+                this.deviceOrientation = {
+                    alpha: event.alpha || 0,
+                    beta: event.beta || 0,
+                    gamma: event.gamma || 0
+                };
+                
+                // Calculate compass heading
+                this.compassHeading = event.alpha ? (360 - event.alpha) % 360 : 0;
+                
+                // Update camera rotation based on device orientation
+                if (this.camera) {
+                    const alpha = THREE.MathUtils.degToRad(this.deviceOrientation.alpha || 0);
+                    const beta = THREE.MathUtils.degToRad(this.deviceOrientation.beta || 0);
+                    const gamma = THREE.MathUtils.degToRad(this.deviceOrientation.gamma || 0);
+                    
+                    this.camera.rotation.set(beta, alpha, gamma);
+                }
+                
+                this.updateCompass();
+            }
+            
+            updateNavigation() {
+                // Calculate distance and bearing to restroom
+                this.currentDistance = this.calculateDistance(
+                    this.currentPosition.lat,
+                    this.currentPosition.lng,
+                    this.restroomLocation.lat,
+                    this.restroomLocation.lng
+                );
+                
+                this.targetBearing = this.calculateBearing(
+                    this.currentPosition.lat,
+                    this.currentPosition.lng,
+                    this.restroomLocation.lat,
+                    this.restroomLocation.lng
+                );
+                
+                this.updateUI();
+                this.update3DObjects();
+                
+                // Check if arrived
+                if (this.currentDistance < 5 && !this.hasArrived) {
+                    this.triggerArrival();
+                }
+            }
+            
+            calculateDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371e3; // Earth's radius in meters
+                const φ1 = lat1 * Math.PI / 180;
+                const φ2 = lat2 * Math.PI / 180;
+                const Δφ = (lat2 - lat1) * Math.PI / 180;
+                const Δλ = (lon2 - lon1) * Math.PI / 180;
+                
+                const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                         Math.cos(φ1) * Math.cos(φ2) *
+                         Math.sin(Δλ/2) * Math.sin(Δλ/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                
+                return R * c;
+            }
+            
+            calculateBearing(lat1, lon1, lat2, lon2) {
+                const φ1 = lat1 * Math.PI / 180;
+                const φ2 = lat2 * Math.PI / 180;
+                const Δλ = (lon2 - lon1) * Math.PI / 180;
+                
+                const y = Math.sin(Δλ) * Math.cos(φ2);
+                const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+                
+                const θ = Math.atan2(y, x);
+                
+                return (θ * 180 / Math.PI + 360) % 360;
+            }
+            
+            updateUI() {
+                const distanceDisplay = document.getElementById('distanceDisplay');
+                const directionDisplay = document.getElementById('directionDisplay');
+                const coordinates = document.getElementById('coordinates');
+                
+                distanceDisplay.textContent = `🚻 Restroom: ${this.currentDistance.toFixed(1)}m away`;
+                
+                const relativeBearing = (this.targetBearing - this.compassHeading + 360) % 360;
+                let direction = '';
+                
+                if (relativeBearing < 15 || relativeBearing > 345) {
+                    direction = 'Straight ahead';
+                    directionDisplay.style.color = '#00ff00';
+                } else if (relativeBearing < 45) {
+                    direction = 'Turn slightly right';
+                    directionDisplay.style.color = '#ffff00';
+                } else if (relativeBearing < 135) {
+                    direction = 'Turn right';
+                    directionDisplay.style.color = '#ff8800';
+                } else if (relativeBearing < 225) {
+                    direction = 'Turn around';
+                    directionDisplay.style.color = '#ff0000';
+                } else if (relativeBearing < 315) {
+                    direction = 'Turn left';
+                    directionDisplay.style.color = '#ff8800';
+                } else {
+                    direction = 'Turn slightly left';
+                    directionDisplay.style.color = '#ffff00';
+                }
+                
+                directionDisplay.textContent = direction;
+                
+                coordinates.textContent = 
+                    `Lat: ${this.currentPosition.lat.toFixed(6)}, ` +
+                    `Lng: ${this.currentPosition.lng.toFixed(6)} ` +
+                    `(±${this.currentPosition.accuracy.toFixed(0)}m)`;
+            }
+            
+            updateCompass() {
+                const needle = document.getElementById('compassNeedle');
+                const bearingDiff = this.targetBearing - this.compassHeading;
+                needle.style.transform = `translate(-50%, -100%) rotate(${bearingDiff}deg)`;
+            }
+            
+            update3DObjects() {
+                if (!this.restroomMarker || !this.directionArrow) return;
+                
+                // Position restroom marker based on distance and bearing
+                const distance = Math.min(this.currentDistance, 50); // Clamp max distance for visibility
+                const bearing = THREE.MathUtils.degToRad(this.targetBearing - this.compassHeading);
+                
+                const x = Math.sin(bearing) * distance;
+                const z = -Math.cos(bearing) * distance;
+                
+                this.restroomMarker.position.set(x, 0, z);
+                
+                // Scale marker based on distance
+                const scale = Math.max(0.5, Math.min(2, 50 / this.currentDistance));
+                this.restroomMarker.scale.set(scale, scale, scale);
+                
+                // Update direction arrow
+                this.directionArrow.lookAt(this.restroomMarker.position);
+                
+                // Make objects pulse when close
+                if (this.currentDistance < 20) {
+                    const pulseScale = 1 + 0.3 * Math.sin(Date.now() * 0.005);
+                    this.restroomMarker.scale.multiplyScalar(pulseScale);
+                }
+            }
+            
+            triggerArrival() {
+                this.hasArrived = true;
+                const arrivedMessage = document.getElementById('arrivedMessage');
+                arrivedMessage.style.display = 'block';
+                
+                // Play arrival sound
+                if ('speechSynthesis' in window) {
+                    const utterance = new SpeechSynthesisUtterance('You have arrived at the restroom!');
+                    speechSynthesis.speak(utterance);
+                }
+                
+                // Hide arrival message after 5 seconds
+                setTimeout(() => {
+                    arrivedMessage.style.display = 'none';
+                }, 5000);
+            }
+            
+            animate() {
+                if (!this.isActive) return;
+                
+                requestAnimationFrame(() => this.animate());
+                
+                // Update 3D objects
+                this.update3DObjects();
+                
+                // Render scene
+                this.renderer.render(this.scene, this.camera);
+            }
+            
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
         
-        // Initialize on load
-        initializeValues();
+        // Initialize AR system
+        const arLocator = new ARRestroomLocator();
+        
+        // Global function for start button
+        function startAR() {
+            arLocator.startAR();
+        }
     </script>
 </body>
 </html>
