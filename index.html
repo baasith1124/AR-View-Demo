@@ -434,8 +434,14 @@
                 this.hasArrived = false;
                 this.destinationSet = false;
                 this.animationId = null;
+
+                this.raycaster = new THREE.Raycaster();
+                this.mouse = new THREE.Vector2();
+
                 
                 this.init();
+                window.addEventListener('click', this.onClick.bind(this));
+
             }
             
             init() {
@@ -444,9 +450,41 @@
                 this.setupThreeJS();
                 this.setupEventListeners();
             }
+            onClick(event) {
+                this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const intersects = this.raycaster.intersectObjects([this.hotspot]);
+
+                if (intersects.length > 0) {
+                    // Simulate camera jump or load new panorama
+                    console.log('Navigating to next spot...');
+                    this.restroomLocation.lat += 0.00005; // Simulate small move
+                    this.restroomLocation.lng += 0.00005;
+                    this.destinationSet = true;
+                    this.hasArrived = false;
+                }
+            }
+
             
             setupThreeJS() {
                 this.scene = new THREE.Scene();
+                const textureLoader = new THREE.TextureLoader();
+                textureLoader.load('panorama.jpeg', (texture) => {
+                    const geometry = new THREE.SphereGeometry(500, 60, 40);
+                    const material = new THREE.MeshBasicMaterial({
+                        map: texture,
+                        side: THREE.BackSide
+                    });
+                    const grid = new THREE.GridHelper(200, 40, 0x00ffff, 0x222222);
+                    grid.rotation.x = Math.PI / 2;
+                    this.scene.add(grid);
+
+                    const sphere = new THREE.Mesh(geometry, material);
+                    this.scene.add(sphere);
+                });
+
                 
                 this.camera = new THREE.PerspectiveCamera(
                     75, 
@@ -542,6 +580,15 @@
                 });
 
                 this.scene.add(this.restroomSymbol);
+                const arrowHotspot = new THREE.Mesh(
+                    new THREE.PlaneGeometry(2, 2),
+                    new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.5 })
+                );
+                arrowHotspot.position.set(10, 0, -10);
+                arrowHotspot.name = 'nextNode';
+                this.scene.add(arrowHotspot);
+                this.hotspot = arrowHotspot;
+
                 
                 // Create direction arrow
                 const dir = new THREE.Vector3(0, 0, -1); // Forward
@@ -611,7 +658,7 @@
             }
             
             calculateDestination(lat, lng) {
-                const distance = 4.9; // 20 meters
+                const distance = 9.9; // 20 meters
                 const bearing = 0;
                 
                 const R = 6371e3;
