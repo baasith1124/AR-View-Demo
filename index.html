@@ -1,53 +1,293 @@
 <!DOCTYPE html>
-<html>
-  <head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR Restroom Locator</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.2/aframe/build/aframe-ar.min.js"></script>
-    <link rel="icon" href="data:," />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.0/aframe.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ar.js/2.2.2/aframe-ar.min.js"></script>
     <style>
-      .distance-label {
-        position: fixed;
-        bottom: 20px; width: 100%; text-align: center;
-        font-size: 1.5em; color: white;
-        background: rgba(0,0,0,0.5); padding: 10px; z-index: 10;
-      }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #000;
+            overflow: hidden;
+        }
+        
+        .ar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 999;
+        }
+        
+        .info-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            pointer-events: auto;
+            z-index: 1000;
+        }
+        
+        .distance-info {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .direction-info {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .arrow-container {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+        
+        .direction-arrow {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .start-button {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+        
+        .start-button:hover {
+            background: #45a049;
+        }
+        
+        .camera-view {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1;
+        }
+        
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            z-index: 1000;
+        }
     </style>
-  </head>
-  <body style="margin:0; overflow:hidden">
-    <a-scene
-    embedded
-    arjs="sourceType: webcam; detectionMode: mono; sourceWidth:1280; sourceHeight:720; displayWidth:1280; displayHeight:720;"
-    vr-mode-ui="enabled: false"
-    >
-
-      <a-marker type="barcode" value="5">
-        <a-box id="arrow" position="0 1 -2" color="#00B78E" depth="2" height="0.5" width="0.5"></a-box>
-      </a-marker>
-
-      <a-entity camera></a-entity>
-    </a-scene>
-
-    <div class="distance-label" id="distanceLabel">Restroom: 30.4m ➤</div>
+</head>
+<body>
+    <div id="loading" class="loading">
+        Loading AR Camera...
+    </div>
+    
+    <div class="camera-view">
+        <video id="video" autoplay playsinline></video>
+    </div>
+    
+    <div class="ar-overlay">
+        <div class="info-panel">
+            <div class="distance-info" id="distance">🚻 Restroom: 30.4m away</div>
+            <div class="direction-info" id="direction">Point your phone toward the restroom</div>
+        </div>
+        
+        <div class="arrow-container">
+            <div class="direction-arrow" id="arrow">
+                ➤
+            </div>
+        </div>
+    </div>
+    
+    <button class="start-button" id="startBtn" onclick="startAR()">Start AR Navigation</button>
 
     <script>
-      window.addEventListener("load", () => {
-        const arrow = document.querySelector("#arrow");
-        const label = document.getElementById("distanceLabel");
-        const pos = { x: 30, y: 5 };
-        const angleDeg = (Math.atan2(pos.y, pos.x) * 180) / Math.PI;
-        const dist = Math.hypot(pos.x, pos.y);
-        label.innerText = `Restroom: ${dist.toFixed(1)}m ➤`;
-
-        window.addEventListener("deviceorientationabsolute", (ev) => {
-          const h = ev.alpha;
-          if (h !== null && arrow) {
-            let rot = (angleDeg - h + 360) % 360;
-            arrow.setAttribute("rotation", `0 ${rot.toFixed(1)} 0`);
-          }
-        }, true);
-      });
+        let isARActive = false;
+        let deviceOrientation = 0;
+        let targetAngle = 0;
+        
+        // Lecture hall dimensions: 30m x 13m
+        // User position: (0, 0) - entrance
+        // Restroom position: (28, 5) - near far end, slightly right
+        const userPosition = { x: 0, y: 0 };
+        const restroomPosition = { x: 28, y: 5 };
+        
+        // Calculate target angle and distance
+        function calculateTargetAngle() {
+            const deltaX = restroomPosition.x - userPosition.x;
+            const deltaY = restroomPosition.y - userPosition.y;
+            
+            // Calculate angle in degrees (0 = north, 90 = east)
+            let angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+            
+            // Convert to compass heading (0 = north, 90 = east)
+            angle = (angle + 360) % 360;
+            
+            return angle;
+        }
+        
+        function calculateDistance() {
+            const deltaX = restroomPosition.x - userPosition.x;
+            const deltaY = restroomPosition.y - userPosition.y;
+            return Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        }
+        
+        // Initialize target angle
+        targetAngle = calculateTargetAngle();
+        const distance = calculateDistance();
+        
+        // Update distance display
+        document.getElementById('distance').textContent = `🚻 Restroom: ${distance.toFixed(1)}m away`;
+        
+        // Start AR camera
+        async function startAR() {
+            const video = document.getElementById('video');
+            const loading = document.getElementById('loading');
+            const startBtn = document.getElementById('startBtn');
+            
+            try {
+                // Request camera access
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                
+                video.srcObject = stream;
+                loading.style.display = 'none';
+                startBtn.style.display = 'none';
+                isARActive = true;
+                
+                // Start orientation tracking
+                startOrientationTracking();
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                loading.textContent = 'Camera access denied. Please allow camera access.';
+            }
+        }
+        
+        // Device orientation tracking
+        function startOrientationTracking() {
+            if ('DeviceOrientationEvent' in window) {
+                window.addEventListener('deviceorientation', handleOrientation);
+            } else {
+                document.getElementById('direction').textContent = 'Device orientation not supported';
+            }
+        }
+        
+        function handleOrientation(event) {
+            if (!isARActive) return;
+            
+            // Get device compass heading
+            let heading = event.alpha;
+            if (heading === null) {
+                heading = event.webkitCompassHeading || 0;
+            }
+            
+            // Normalize heading (0-360)
+            heading = (360 - heading) % 360;
+            deviceOrientation = heading;
+            
+            // Calculate relative angle to target
+            let relativeAngle = targetAngle - heading;
+            
+            // Normalize to -180 to 180
+            if (relativeAngle > 180) relativeAngle -= 360;
+            if (relativeAngle < -180) relativeAngle += 360;
+            
+            // Update arrow rotation
+            const arrow = document.getElementById('arrow');
+            arrow.style.transform = `rotate(${relativeAngle}deg)`;
+            
+            // Update direction info
+            const directionText = document.getElementById('direction');
+            const absAngle = Math.abs(relativeAngle);
+            
+            if (absAngle < 15) {
+                directionText.textContent = '✅ Restroom straight ahead!';
+                directionText.style.color = '#4CAF50';
+            } else if (absAngle < 45) {
+                const direction = relativeAngle > 0 ? 'slightly right' : 'slightly left';
+                directionText.textContent = `Turn ${direction}`;
+                directionText.style.color = '#FFC107';
+            } else {
+                const direction = relativeAngle > 0 ? 'right' : 'left';
+                directionText.textContent = `Turn ${direction}`;
+                directionText.style.color = '#FF5722';
+            }
+        }
+        
+        // Request device orientation permission for iOS
+        function requestOrientationPermission() {
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response == 'granted') {
+                            startOrientationTracking();
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                startOrientationTracking();
+            }
+        }
+        
+        // Auto-start on page load for demo
+        window.addEventListener('load', () => {
+            // Auto-start after 2 seconds for demo
+            setTimeout(() => {
+                if (!isARActive) {
+                    startAR();
+                }
+            }, 2000);
+        });
+        
+        // Handle click to start for iOS
+        document.addEventListener('click', () => {
+            if (!isARActive) {
+                requestOrientationPermission();
+            }
+        });
     </script>
-  </body>
+</body>
 </html>
