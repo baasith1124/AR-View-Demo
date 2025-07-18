@@ -252,11 +252,11 @@
                 this.deviceOrientation = { alpha: 0, beta: 0, gamma: 0 };
                 this.compassHeading = 0;
                 
-                // Restroom location (example coordinates - replace with actual)
+                // Restroom location (will be set dynamically 15m from user)
                 this.restroomLocation = {
-                    lat: 37.7749,  // Replace with actual restroom latitude
-                    lng: -122.4194, // Replace with actual restroom longitude
-                    name: "Main Restroom"
+                    lat: 0,
+                    lng: 0,
+                    name: "Nearby Restroom"
                 };
                 
                 // 3D objects
@@ -269,6 +269,7 @@
                 this.currentDistance = 0;
                 this.targetBearing = 0;
                 this.hasArrived = false;
+                this.destinationSet = false;
                 
                 this.init();
             }
@@ -362,6 +363,30 @@
                 }
             }
             
+            // Calculate destination coordinates 15m away in a random direction
+            calculateDestination(lat, lng) {
+                const distance = 15; // 15 meters
+                const bearing = Math.random() * 360; // Random direction
+                
+                const R = 6371e3; // Earth's radius in meters
+                const φ1 = lat * Math.PI / 180;
+                const δ = distance / R;
+                const θ = bearing * Math.PI / 180;
+                
+                const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) +
+                                    Math.cos(φ1) * Math.sin(δ) * Math.cos(θ));
+                
+                const λ2 = (lng * Math.PI / 180) + Math.atan2(
+                    Math.sin(θ) * Math.sin(δ) * Math.cos(φ1),
+                    Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2)
+                );
+                
+                return {
+                    lat: φ2 * 180 / Math.PI,
+                    lng: λ2 * 180 / Math.PI
+                };
+            }
+            
             async startAR() {
                 try {
                     // Get user location
@@ -404,6 +429,19 @@
                                 lng: position.coords.longitude,
                                 accuracy: position.coords.accuracy
                             };
+                            
+                            // Set destination 15m away from current position
+                            if (!this.destinationSet) {
+                                const destination = this.calculateDestination(
+                                    this.currentPosition.lat,
+                                    this.currentPosition.lng
+                                );
+                                this.restroomLocation.lat = destination.lat;
+                                this.restroomLocation.lng = destination.lng;
+                                this.destinationSet = true;
+                                
+                                console.log('Destination set:', this.restroomLocation);
+                            }
                             
                             // Calculate initial distance and bearing
                             this.updateNavigation();
@@ -476,6 +514,8 @@
             }
             
             updateNavigation() {
+                if (!this.destinationSet) return;
+                
                 // Calculate distance and bearing to restroom
                 this.currentDistance = this.calculateDistance(
                     this.currentPosition.lat,
@@ -494,8 +534,8 @@
                 this.updateUI();
                 this.update3DObjects();
                 
-                // Check if arrived
-                if (this.currentDistance < 5 && !this.hasArrived) {
+                // Check if arrived (within 3 meters)
+                if (this.currentDistance < 3 && !this.hasArrived) {
                     this.triggerArrival();
                 }
             }
@@ -561,8 +601,8 @@
                 directionDisplay.textContent = direction;
                 
                 coordinates.textContent = 
-                    `Lat: ${this.currentPosition.lat.toFixed(6)}, ` +
-                    `Lng: ${this.currentPosition.lng.toFixed(6)} ` +
+                    `Current: ${this.currentPosition.lat.toFixed(6)}, ${this.currentPosition.lng.toFixed(6)} ` +
+                    `| Target: ${this.restroomLocation.lat.toFixed(6)}, ${this.restroomLocation.lng.toFixed(6)} ` +
                     `(±${this.currentPosition.accuracy.toFixed(0)}m)`;
             }
             
@@ -592,7 +632,7 @@
                 this.directionArrow.lookAt(this.restroomMarker.position);
                 
                 // Make objects pulse when close
-                if (this.currentDistance < 20) {
+                if (this.currentDistance < 10) {
                     const pulseScale = 1 + 0.3 * Math.sin(Date.now() * 0.005);
                     this.restroomMarker.scale.multiplyScalar(pulseScale);
                 }
