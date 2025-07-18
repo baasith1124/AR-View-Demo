@@ -527,17 +527,31 @@
                 }
                 
                 this.restroomSymbol = symbolGroup;
+                const loader = new THREE.FontLoader();
+                loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
+                    const textGeometry = new THREE.TextGeometry('🚻 Restroom', {
+                        font: font,
+                        size: 0.8,
+                        height: 0.1
+                    });
+                    const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                    const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+                    textMesh.position.set(0, 6.5, 0); // Above the building
+                    textMesh.name = "restroomLabel";
+                    symbolGroup.add(textMesh); // Add to the group
+                });
+
                 this.scene.add(this.restroomSymbol);
                 
                 // Create direction arrow
-                const arrowGeometry = new THREE.ConeGeometry(0.8, 3, 8);
-                const arrowMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xff0000,
-                    emissive: 0x220000
-                });
-                this.directionArrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-                this.directionArrow.position.set(0, -3, -8);
+                const dir = new THREE.Vector3(0, 0, -1); // Forward
+                const origin = new THREE.Vector3(0, 2, 0); // Height from camera
+                const length = 5;
+                const hex = 0xff0000;
+
+                this.directionArrow = new THREE.ArrowHelper(dir, origin, length, hex);
                 this.scene.add(this.directionArrow);
+
                 
                 // Create path line
                 const pathGeometry = new THREE.BufferGeometry();
@@ -597,8 +611,8 @@
             }
             
             calculateDestination(lat, lng) {
-                const distance = 20; // 20 meters
-                const bearing = Math.random() * 360;
+                const distance = 4.9; // 20 meters
+                const bearing = 0;
                 
                 const R = 6371e3;
                 const φ1 = lat * Math.PI / 180;
@@ -940,24 +954,29 @@
                 
                 // Rotate the symbol slowly
                 this.restroomSymbol.rotation.y += 0.01;
+                this.restroomSymbol.lookAt(this.camera.position);
+
                 
                 // Update direction arrow
-                this.directionArrow.lookAt(this.restroomSymbol.position);
-                this.directionArrow.position.y = -3 + Math.sin(time * 2) * 0.5;
+                const dirVector = this.restroomSymbol.position.clone().sub(new THREE.Vector3(0, 0, 0)).normalize();
+                this.directionArrow.setDirection(dirVector);
+
                 
                 // Pulse effect when very close
                 if (this.currentDistance < 15) {
-                    const pulseScale = 1 + 0.5 * Math.sin(time * 2);
-                    this.restroomSymbol.scale.multiplyScalar(pulseScale);
-                    
-                    // Change color when close
+                    const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.01);
                     this.restroomSymbol.children.forEach(child => {
-                        if (child.material) {
-                            child.material.emissive.setHex(0x002200);
+                        if (child.material && child.material.emissive) {
+                            child.material.emissiveIntensity = pulse;
+                            child.material.emissive.setHex(0x00ff00);
                         }
                     });
                 }
-                
+                const label = this.restroomSymbol.getObjectByName("restroomLabel");
+                if (label) {
+                    label.position.y = 6.5 + Math.sin(Date.now() * 0.003) * 0.5;
+                }
+
                 // Update path line
                 this.updatePathLine();
             }
