@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real AR Restroom Locator</title>
+    <title>Enhanced AR Restroom Locator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background: #000;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
             overflow: hidden;
             font-family: 'Arial', sans-serif;
         }
@@ -22,6 +22,12 @@
             height: 100vh;
             object-fit: cover;
             z-index: 1;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        
+        #video.active {
+            opacity: 1;
         }
         
         #canvas {
@@ -47,29 +53,54 @@
             top: 20px;
             left: 20px;
             right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(15px);
             color: white;
-            padding: 20px;
-            border-radius: 15px;
-            border: 2px solid rgba(0, 255, 255, 0.3);
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            padding: 25px;
+            border-radius: 20px;
+            border: 3px solid rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+            animation: glow 2s infinite alternate;
         }
         
         .distance-display {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: bold;
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             color: #00ffff;
-            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            text-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
+            animation: pulse 2s infinite;
         }
         
         .direction-display {
-            font-size: 16px;
+            font-size: 18px;
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             color: #ffffff;
+            font-weight: 500;
+        }
+        
+        .mode-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .mode-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
         }
         
         .compass-container {
@@ -77,25 +108,27 @@
             top: 50%;
             right: 20px;
             transform: translateY(-50%);
-            width: 100px;
-            height: 100px;
-            border: 3px solid rgba(0, 255, 255, 0.5);
+            width: 120px;
+            height: 120px;
+            border: 4px solid rgba(0, 255, 255, 0.6);
             border-radius: 50%;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
         }
         
         .compass-needle {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 4px;
-            height: 40px;
+            width: 6px;
+            height: 50px;
             background: linear-gradient(to top, #ff0000, #ff6666);
             transform-origin: bottom center;
             transform: translate(-50%, -100%);
-            border-radius: 2px;
-            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+            border-radius: 3px;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
+            animation: needle-glow 1.5s infinite alternate;
         }
         
         .compass-labels {
@@ -103,59 +136,84 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 80px;
-            height: 80px;
+            width: 100px;
+            height: 100px;
             color: white;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: bold;
         }
         
-        .compass-n { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); }
-        .compass-e { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); }
-        .compass-s { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); }
-        .compass-w { position: absolute; left: 5px; top: 50%; transform: translateY(-50%); }
+        .compass-n { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); }
+        .compass-e { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+        .compass-s { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); }
+        .compass-w { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); }
         
         .navigation-info {
             position: absolute;
             bottom: 20px;
             left: 20px;
             right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(15px);
             color: white;
-            padding: 15px;
-            border-radius: 10px;
-            border: 2px solid rgba(0, 255, 0, 0.3);
+            padding: 20px;
+            border-radius: 15px;
+            border: 3px solid rgba(0, 255, 0, 0.4);
             text-align: center;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
         }
         
         .coordinates {
-            font-size: 14px;
+            font-size: 12px;
             margin-top: 10px;
-            color: #888;
+            color: #aaa;
+        }
+        
+        .control-buttons {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
         }
         
         .start-button {
-            position: absolute;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
             background: linear-gradient(45deg, #00ffff, #0080ff);
             color: white;
             border: none;
-            padding: 15px 30px;
-            border-radius: 25px;
-            font-size: 18px;
+            padding: 18px 35px;
+            border-radius: 30px;
+            font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            pointer-events: auto;
-            box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
+            box-shadow: 0 6px 20px rgba(0, 255, 255, 0.4);
             transition: all 0.3s ease;
+            animation: button-pulse 2s infinite;
         }
         
         .start-button:hover {
-            transform: translateX(-50%) scale(1.05);
-            box-shadow: 0 6px 20px rgba(0, 255, 255, 0.5);
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(0, 255, 255, 0.6);
+        }
+        
+        .camera-button {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            color: white;
+            border: none;
+            padding: 18px 35px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+            transition: all 0.3s ease;
+        }
+        
+        .camera-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.6);
         }
         
         .loading {
@@ -164,9 +222,13 @@
             left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            font-size: 20px;
+            font-size: 24px;
             text-align: center;
             z-index: 10;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 20px;
+            border: 2px solid rgba(0, 255, 255, 0.5);
         }
         
         .arrived-message {
@@ -174,36 +236,120 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 255, 0, 0.9);
+            background: linear-gradient(45deg, #00ff00, #00cc00);
             color: white;
-            padding: 30px;
-            border-radius: 20px;
-            font-size: 24px;
+            padding: 40px;
+            border-radius: 25px;
+            font-size: 28px;
             font-weight: bold;
             text-align: center;
             display: none;
             z-index: 10;
-            box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+            box-shadow: 0 0 40px rgba(0, 255, 0, 0.6);
+            animation: celebration 0.5s ease-in-out;
+        }
+        
+        .no-camera-mode {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            border: 3px solid rgba(0, 255, 255, 0.5);
+            max-width: 80%;
+        }
+        
+        .radar-container {
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            border: 3px solid rgba(0, 255, 255, 0.5);
+            border-radius: 50%;
+            position: relative;
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.1) 0%, transparent 70%);
+        }
+        
+        .radar-dot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #ff0000;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: radar-pulse 2s infinite;
+        }
+        
+        .radar-sweep {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 95px;
+            background: linear-gradient(to top, transparent, rgba(0, 255, 255, 0.8));
+            transform-origin: bottom center;
+            transform: translate(-50%, -100%);
+            animation: radar-sweep 3s linear infinite;
         }
         
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.05); }
         }
         
         @keyframes glow {
-            0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
-            50% { box-shadow: 0 0 30px rgba(0, 255, 255, 0.8); }
+            0%, 100% { box-shadow: 0 0 30px rgba(0, 255, 255, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(0, 255, 255, 0.6); }
         }
         
-        .pulse { animation: pulse 2s infinite; }
-        .glow { animation: glow 2s infinite; }
+        @keyframes needle-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 0, 0, 0.6); }
+            50% { box-shadow: 0 0 25px rgba(255, 0, 0, 0.9); }
+        }
+        
+        @keyframes button-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        @keyframes celebration {
+            0% { transform: translate(-50%, -50%) scale(0.8); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        @keyframes radar-pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.5); opacity: 0.5; }
+        }
+        
+        @keyframes radar-sweep {
+            0% { transform: translate(-50%, -100%) rotate(0deg); }
+            100% { transform: translate(-50%, -100%) rotate(360deg); }
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        @keyframes restroom-glow {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+        
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <div id="loading" class="loading">
-        <div>🚀 Initializing AR Camera...</div>
-        <div style="font-size: 14px; margin-top: 10px;">Please allow camera and location access</div>
+        <div>🚀 Initializing AR System...</div>
+        <div style="font-size: 16px; margin-top: 15px;">Please allow location access</div>
     </div>
     
     <video id="video" autoplay playsinline muted></video>
@@ -214,6 +360,8 @@
             <div class="distance-display" id="distanceDisplay">🚻 Restroom: Locating...</div>
             <div class="direction-display" id="directionDisplay">Initializing compass...</div>
         </div>
+        
+        <button class="mode-toggle" id="modeToggle" onclick="toggleMode()">📱 Map Mode</button>
         
         <div class="compass-container" id="compassContainer">
             <div class="compass-needle" id="compassNeedle"></div>
@@ -226,20 +374,32 @@
         </div>
         
         <div class="navigation-info" id="navigationInfo">
-            <div>Move your phone to look around</div>
+            <div id="modeText">Move your phone to look around</div>
             <div class="coordinates" id="coordinates">Waiting for GPS...</div>
         </div>
         
-        <button class="start-button" id="startButton" onclick="startAR()">🚀 Start AR Navigation</button>
+        <div class="control-buttons">
+            <button class="start-button" id="startButton" onclick="startTracking()">🚀 Start Navigation</button>
+            <button class="camera-button" id="cameraButton" onclick="toggleCamera()">📷 AR Camera</button>
+        </div>
+    </div>
+    
+    <div class="no-camera-mode hidden" id="noCameraMode">
+        <h2>🚻 Restroom Locator</h2>
+        <div class="radar-container">
+            <div class="radar-sweep"></div>
+            <div class="radar-dot" id="radarDot"></div>
+        </div>
+        <div id="radarInfo">Distance: Calculating...</div>
     </div>
     
     <div class="arrived-message" id="arrivedMessage">
-        🎉 ARRIVED! 🎉<br>
-        <div style="font-size: 16px; margin-top: 10px;">Welcome to the restroom!</div>
+        🎉 DESTINATION REACHED! 🎉<br>
+        <div style="font-size: 18px; margin-top: 15px;">Welcome to the restroom!</div>
     </div>
 
     <script>
-        class ARRestroomLocator {
+        class EnhancedARRestroomLocator {
             constructor() {
                 this.scene = null;
                 this.camera = null;
@@ -249,11 +409,11 @@
                 
                 // Real device sensors
                 this.currentPosition = { lat: 0, lng: 0, accuracy: 0 };
-                this.initialPosition = { lat: 0, lng: 0 }; // Store initial position
+                this.initialPosition = { lat: 0, lng: 0 };
                 this.deviceOrientation = { alpha: 0, beta: 0, gamma: 0 };
                 this.compassHeading = 0;
                 
-                // Restroom location (will be set once based on initial position)
+                // Restroom location
                 this.restroomLocation = {
                     lat: 0,
                     lng: 0,
@@ -262,15 +422,18 @@
                 
                 // 3D objects
                 this.restroomMarker = null;
+                this.restroomSymbol = null;
                 this.directionArrow = null;
                 this.pathLine = null;
                 
                 // State
                 this.isActive = false;
+                this.cameraMode = false;
                 this.currentDistance = 0;
                 this.targetBearing = 0;
                 this.hasArrived = false;
                 this.destinationSet = false;
+                this.animationId = null;
                 
                 this.init();
             }
@@ -283,10 +446,8 @@
             }
             
             setupThreeJS() {
-                // Create scene
                 this.scene = new THREE.Scene();
                 
-                // Create camera
                 this.camera = new THREE.PerspectiveCamera(
                     75, 
                     window.innerWidth / window.innerHeight, 
@@ -294,7 +455,6 @@
                     1000
                 );
                 
-                // Create renderer
                 this.renderer = new THREE.WebGLRenderer({ 
                     canvas: this.canvas,
                     alpha: true,
@@ -302,55 +462,127 @@
                 });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.setClearColor(0x000000, 0);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 
-                // Add lighting
-                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                // Enhanced lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
                 this.scene.add(ambientLight);
                 
                 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-                directionalLight.position.set(0, 1, 0);
+                directionalLight.position.set(0, 10, 5);
+                directionalLight.castShadow = true;
                 this.scene.add(directionalLight);
+                
+                // Add point light for restroom symbol
+                const pointLight = new THREE.PointLight(0x00ffff, 1, 100);
+                pointLight.position.set(0, 5, 0);
+                this.scene.add(pointLight);
                 
                 this.create3DObjects();
             }
             
             create3DObjects() {
-                // Create restroom marker (3D toilet icon)
-                const markerGeometry = new THREE.BoxGeometry(2, 3, 1);
-                const markerMaterial = new THREE.MeshPhongMaterial({ 
+                // Create LARGE bouncing restroom symbol
+                const symbolGroup = new THREE.Group();
+                
+                // Main restroom building
+                const buildingGeometry = new THREE.BoxGeometry(4, 6, 3);
+                const buildingMaterial = new THREE.MeshPhongMaterial({ 
                     color: 0x00ffff,
                     transparent: true,
-                    opacity: 0.8
+                    opacity: 0.9,
+                    emissive: 0x002222
                 });
-                this.restroomMarker = new THREE.Mesh(markerGeometry, markerMaterial);
-                this.scene.add(this.restroomMarker);
+                const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+                building.castShadow = true;
+                symbolGroup.add(building);
+                
+                // Restroom sign
+                const signGeometry = new THREE.PlaneGeometry(3, 1.5);
+                const signMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const sign = new THREE.Mesh(signGeometry, signMaterial);
+                sign.position.set(0, 2, 1.6);
+                symbolGroup.add(sign);
+                
+                // Floating icons above
+                const iconGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+                const iconMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xff6600,
+                    emissive: 0x331100
+                });
+                
+                for (let i = 0; i < 3; i++) {
+                    const icon = new THREE.Mesh(iconGeometry, iconMaterial);
+                    icon.position.set(
+                        (i - 1) * 1.5, 
+                        8 + Math.sin(i) * 2, 
+                        0
+                    );
+                    symbolGroup.add(icon);
+                }
+                
+                this.restroomSymbol = symbolGroup;
+                this.scene.add(this.restroomSymbol);
                 
                 // Create direction arrow
-                const arrowGeometry = new THREE.ConeGeometry(0.5, 2, 8);
-                const arrowMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+                const arrowGeometry = new THREE.ConeGeometry(0.8, 3, 8);
+                const arrowMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xff0000,
+                    emissive: 0x220000
+                });
                 this.directionArrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-                this.directionArrow.position.set(0, -2, -5);
+                this.directionArrow.position.set(0, -3, -8);
                 this.scene.add(this.directionArrow);
                 
                 // Create path line
                 const pathGeometry = new THREE.BufferGeometry();
                 const pathMaterial = new THREE.LineBasicMaterial({ 
                     color: 0x00ff00,
-                    linewidth: 3
+                    linewidth: 5
                 });
                 this.pathLine = new THREE.Line(pathGeometry, pathMaterial);
                 this.scene.add(this.pathLine);
+                
+                // Create floating particles around restroom
+                this.createParticles();
+            }
+            
+            createParticles() {
+                const particleGeometry = new THREE.BufferGeometry();
+                const particleCount = 50;
+                const positions = new Float32Array(particleCount * 3);
+                
+                for (let i = 0; i < particleCount; i++) {
+                    positions[i * 3] = (Math.random() - 0.5) * 20;
+                    positions[i * 3 + 1] = Math.random() * 10;
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * 20;
+                }
+                
+                particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                
+                const particleMaterial = new THREE.PointsMaterial({
+                    color: 0x00ffff,
+                    size: 0.5,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                
+                const particles = new THREE.Points(particleGeometry, particleMaterial);
+                this.scene.add(particles);
             }
             
             setupEventListeners() {
                 window.addEventListener('resize', () => this.onWindowResize());
                 
-                // Device orientation
                 if ('DeviceOrientationEvent' in window) {
                     window.addEventListener('deviceorientation', (e) => this.onDeviceOrientation(e));
                 }
                 
-                // Request orientation permission for iOS
                 if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                     document.addEventListener('click', () => {
                         DeviceOrientationEvent.requestPermission()
@@ -364,12 +596,11 @@
                 }
             }
             
-            // Calculate destination coordinates 15m away in a random direction
             calculateDestination(lat, lng) {
-                const distance = 15; // 15 meters
-                const bearing = Math.random() * 360; // Random direction
+                const distance = 20; // 20 meters
+                const bearing = Math.random() * 360;
                 
-                const R = 6371e3; // Earth's radius in meters
+                const R = 6371e3;
                 const φ1 = lat * Math.PI / 180;
                 const δ = distance / R;
                 const θ = bearing * Math.PI / 180;
@@ -388,25 +619,82 @@
                 };
             }
             
-            async startAR() {
+            async startTracking() {
                 try {
-                    // Get user location
                     await this.getUserLocation();
                     
-                    // Start camera
-                    await this.startCamera();
-                    
-                    // Start AR tracking
-                    this.startTracking();
-                    
                     document.getElementById('loading').style.display = 'none';
-                    document.getElementById('startButton').style.display = 'none';
+                    document.getElementById('startButton').textContent = '🔄 Restart';
                     this.isActive = true;
                     
+                    this.updateDisplay();
+                    this.animate();
+                    
                 } catch (error) {
-                    console.error('Error starting AR:', error);
+                    console.error('Error starting tracking:', error);
                     document.getElementById('loading').innerHTML = 
                         '<div style="color: red;">Error: ' + error.message + '</div>';
+                }
+            }
+            
+            async toggleCamera() {
+                if (this.cameraMode) {
+                    this.stopCamera();
+                } else {
+                    await this.startCamera();
+                }
+            }
+            
+            async startCamera() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'environment',
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
+                        }
+                    });
+                    
+                    this.video.srcObject = stream;
+                    await this.video.play();
+                    
+                    this.video.classList.add('active');
+                    this.cameraMode = true;
+                    
+                    document.getElementById('cameraButton').textContent = '🚫 Stop Camera';
+                    document.getElementById('modeText').textContent = 'AR Camera Mode Active';
+                    document.getElementById('noCameraMode').classList.add('hidden');
+                    
+                } catch (error) {
+                    console.error('Camera access denied:', error);
+                    this.cameraMode = false;
+                }
+            }
+            
+            stopCamera() {
+                if (this.video.srcObject) {
+                    this.video.srcObject.getTracks().forEach(track => track.stop());
+                    this.video.srcObject = null;
+                }
+                
+                this.video.classList.remove('active');
+                this.cameraMode = false;
+                
+                document.getElementById('cameraButton').textContent = '📷 AR Camera';
+                document.getElementById('modeText').textContent = 'Map Mode Active';
+            }
+            
+            toggleMode() {
+                const noCameraMode = document.getElementById('noCameraMode');
+                const modeToggle = document.getElementById('modeToggle');
+                
+                if (noCameraMode.classList.contains('hidden')) {
+                    noCameraMode.classList.remove('hidden');
+                    modeToggle.textContent = '🎯 AR Mode';
+                    this.stopCamera();
+                } else {
+                    noCameraMode.classList.add('hidden');
+                    modeToggle.textContent = '📱 Map Mode';
                 }
             }
             
@@ -425,22 +713,18 @@
                     
                     navigator.geolocation.getCurrentPosition(
                         (position) => {
-                            // Update current position
                             this.currentPosition = {
                                 lat: position.coords.latitude,
                                 lng: position.coords.longitude,
                                 accuracy: position.coords.accuracy
                             };
                             
-                            // Set initial position and destination ONLY once
                             if (!this.destinationSet) {
-                                // Store the initial position
                                 this.initialPosition = {
                                     lat: position.coords.latitude,
                                     lng: position.coords.longitude
                                 };
                                 
-                                // Calculate destination 15m away from INITIAL position
                                 const destination = this.calculateDestination(
                                     this.initialPosition.lat,
                                     this.initialPosition.lng
@@ -450,61 +734,31 @@
                                 this.restroomLocation.lng = destination.lng;
                                 this.destinationSet = true;
                                 
-                                console.log('Initial position:', this.initialPosition);
-                                console.log('Destination set 15m away:', this.restroomLocation);
+                                console.log('Destination set:', this.restroomLocation);
                             }
                             
-                            // Calculate initial distance and bearing
                             this.updateNavigation();
                             resolve();
                         },
                         (error) => {
-                            reject(new Error('Location access denied or unavailable'));
+                            reject(new Error('Location access denied'));
                         },
                         options
                     );
                     
-                    // Watch position changes (but don't recalculate destination)
                     navigator.geolocation.watchPosition(
                         (position) => {
-                            // Only update current position, NOT the destination
                             this.currentPosition = {
                                 lat: position.coords.latitude,
                                 lng: position.coords.longitude,
                                 accuracy: position.coords.accuracy
                             };
-                            
-                            // Update navigation based on new current position
                             this.updateNavigation();
                         },
-                        (error) => {
-                            console.warn('Position watch error:', error);
-                        },
+                        (error) => console.warn('Position watch error:', error),
                         options
                     );
                 });
-            }
-            
-            async startCamera() {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: 'environment',
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 }
-                        }
-                    });
-                    
-                    this.video.srcObject = stream;
-                    await this.video.play();
-                    
-                } catch (error) {
-                    throw new Error('Camera access denied');
-                }
-            }
-            
-            startTracking() {
-                this.animate();
             }
             
             onDeviceOrientation(event) {
@@ -514,11 +768,9 @@
                     gamma: event.gamma || 0
                 };
                 
-                // Calculate compass heading
                 this.compassHeading = event.alpha ? (360 - event.alpha) % 360 : 0;
                 
-                // Update camera rotation based on device orientation
-                if (this.camera) {
+                if (this.camera && this.cameraMode) {
                     const alpha = THREE.MathUtils.degToRad(this.deviceOrientation.alpha || 0);
                     const beta = THREE.MathUtils.degToRad(this.deviceOrientation.beta || 0);
                     const gamma = THREE.MathUtils.degToRad(this.deviceOrientation.gamma || 0);
@@ -532,7 +784,6 @@
             updateNavigation() {
                 if (!this.destinationSet) return;
                 
-                // Calculate distance and bearing to restroom from CURRENT position
                 this.currentDistance = this.calculateDistance(
                     this.currentPosition.lat,
                     this.currentPosition.lng,
@@ -547,17 +798,16 @@
                     this.restroomLocation.lng
                 );
                 
-                this.updateUI();
+                this.updateDisplay();
                 this.update3DObjects();
                 
-                // Check if arrived (within 3 meters)
-                if (this.currentDistance < 3 && !this.hasArrived) {
+                if (this.currentDistance < 5 && !this.hasArrived) {
                     this.triggerArrival();
                 }
             }
             
             calculateDistance(lat1, lon1, lat2, lon2) {
-                const R = 6371e3; // Earth's radius in meters
+                const R = 6371e3;
                 const φ1 = lat1 * Math.PI / 180;
                 const φ2 = lat2 * Math.PI / 180;
                 const Δφ = (lat2 - lat1) * Math.PI / 180;
@@ -584,42 +834,81 @@
                 return (θ * 180 / Math.PI + 360) % 360;
             }
             
-            updateUI() {
+            updateDisplay() {
                 const distanceDisplay = document.getElementById('distanceDisplay');
                 const directionDisplay = document.getElementById('directionDisplay');
                 const coordinates = document.getElementById('coordinates');
+                const radarInfo = document.getElementById('radarInfo');
+                const radarDot = document.getElementById('radarDot');
                 
+                // Update main display
                 distanceDisplay.textContent = `🚻 Restroom: ${this.currentDistance.toFixed(1)}m away`;
                 
                 const relativeBearing = (this.targetBearing - this.compassHeading + 360) % 360;
                 let direction = '';
+                let directionColor = '#ffffff';
                 
-                if (relativeBearing < 15 || relativeBearing > 345) {
-                    direction = 'Straight ahead';
-                    directionDisplay.style.color = '#00ff00';
-                } else if (relativeBearing < 45) {
-                    direction = 'Turn slightly right';
-                    directionDisplay.style.color = '#ffff00';
-                } else if (relativeBearing < 135) {
-                    direction = 'Turn right';
-                    directionDisplay.style.color = '#ff8800';
-                } else if (relativeBearing < 225) {
-                    direction = 'Turn around';
-                    directionDisplay.style.color = '#ff0000';
-                } else if (relativeBearing < 315) {
-                    direction = 'Turn left';
-                    directionDisplay.style.color = '#ff8800';
+                if (relativeBearing < 20 || relativeBearing > 340) {
+                    direction = '⬆️ Straight ahead';
+                    directionColor = '#00ff00';
+                } else if (relativeBearing < 70) {
+                    direction = '↗️ Turn slightly right';
+                    directionColor = '#ffff00';
+                } else if (relativeBearing < 110) {
+                    direction = '➡️ Turn right';
+                    directionColor = '#ff8800';
+                } else if (relativeBearing < 160) {
+                    direction = '↘️ Turn sharp right';
+                    directionColor = '#ff4400';
+                } else if (relativeBearing < 200) {
+                    direction = '⬇️ Turn around';
+                    directionColor = '#ff0000';
+                } else if (relativeBearing < 250) {
+                    direction = '↙️ Turn sharp left';
+                    directionColor = '#ff4400';
+                } else if (relativeBearing < 290) {
+                    direction = '⬅️ Turn left';
+                    directionColor = '#ff8800';
                 } else {
-                    direction = 'Turn slightly left';
-                    directionDisplay.style.color = '#ffff00';
+                    direction = '↖️ Turn slightly left';
+                    directionColor = '#ffff00';
                 }
                 
                 directionDisplay.textContent = direction;
+                directionDisplay.style.color = directionColor;
                 
+                // Update coordinates
                 coordinates.textContent = 
-                    `Current: ${this.currentPosition.lat.toFixed(6)}, ${this.currentPosition.lng.toFixed(6)} ` +
+                    `GPS: ${this.currentPosition.lat.toFixed(6)}, ${this.currentPosition.lng.toFixed(6)} ` +
                     `| Target: ${this.restroomLocation.lat.toFixed(6)}, ${this.restroomLocation.lng.toFixed(6)} ` +
-                    `(±${this.currentPosition.accuracy.toFixed(0)}m)`;
+                    `| Accuracy: ±${this.currentPosition.accuracy.toFixed(0)}m`;
+                
+                // Update radar display
+                if (radarInfo) {
+                    radarInfo.textContent = `Distance: ${this.currentDistance.toFixed(1)}m | ${direction}`;
+                }
+                
+                // Update radar dot position
+                if (radarDot) {
+                    const maxRadius = 90; // Max radar radius
+                    const distance = Math.min(this.currentDistance, 50);
+                    const radius = (distance / 50) * maxRadius;
+                    
+                    const angle = relativeBearing * Math.PI / 180;
+                    const x = Math.sin(angle) * radius;
+                    const y = -Math.cos(angle) * radius;
+                    
+                    radarDot.style.transform = `translate(${x + 50}%, ${y + 50}%)`;
+                    
+                    // Change color based on distance
+                    if (this.currentDistance < 10) {
+                        radarDot.style.background = '#00ff00';
+                    } else if (this.currentDistance < 20) {
+                        radarDot.style.background = '#ffff00';
+                    } else {
+                        radarDot.style.background = '#ff0000';
+                    }
+                }
             }
             
             updateCompass() {
@@ -629,29 +918,66 @@
             }
             
             update3DObjects() {
-                if (!this.restroomMarker || !this.directionArrow) return;
+                if (!this.restroomSymbol || !this.directionArrow) return;
                 
-                // Position restroom marker based on distance and bearing
-                const distance = Math.min(this.currentDistance, 50); // Clamp max distance for visibility
+                // Position restroom symbol based on distance and bearing
+                const distance = Math.min(this.currentDistance, 100);
                 const bearing = THREE.MathUtils.degToRad(this.targetBearing - this.compassHeading);
                 
                 const x = Math.sin(bearing) * distance;
                 const z = -Math.cos(bearing) * distance;
                 
-                this.restroomMarker.position.set(x, 0, z);
+                this.restroomSymbol.position.set(x, 0, z);
                 
-                // Scale marker based on distance
-                const scale = Math.max(0.5, Math.min(2, 50 / this.currentDistance));
-                this.restroomMarker.scale.set(scale, scale, scale);
+                // Scale based on distance - closer = bigger
+                const baseScale = Math.max(0.5, Math.min(3, 100 / this.currentDistance));
+                this.restroomSymbol.scale.set(baseScale, baseScale, baseScale);
+                
+                // Add bouncing animation
+                const time = Date.now() * 0.003;
+                const bounce = Math.sin(time) * 2;
+                this.restroomSymbol.position.y = bounce;
+                
+                // Rotate the symbol slowly
+                this.restroomSymbol.rotation.y += 0.01;
                 
                 // Update direction arrow
-                this.directionArrow.lookAt(this.restroomMarker.position);
+                this.directionArrow.lookAt(this.restroomSymbol.position);
+                this.directionArrow.position.y = -3 + Math.sin(time * 2) * 0.5;
                 
-                // Make objects pulse when close
-                if (this.currentDistance < 10) {
-                    const pulseScale = 1 + 0.3 * Math.sin(Date.now() * 0.005);
-                    this.restroomMarker.scale.multiplyScalar(pulseScale);
+                // Pulse effect when very close
+                if (this.currentDistance < 15) {
+                    const pulseScale = 1 + 0.5 * Math.sin(time * 2);
+                    this.restroomSymbol.scale.multiplyScalar(pulseScale);
+                    
+                    // Change color when close
+                    this.restroomSymbol.children.forEach(child => {
+                        if (child.material) {
+                            child.material.emissive.setHex(0x002200);
+                        }
+                    });
                 }
+                
+                // Update path line
+                this.updatePathLine();
+            }
+            
+            updatePathLine() {
+                if (!this.pathLine) return;
+                
+                const points = [];
+                const steps = 20;
+                
+                for (let i = 0; i <= steps; i++) {
+                    const t = i / steps;
+                    const x = Math.sin(THREE.MathUtils.degToRad(this.targetBearing - this.compassHeading)) * t * this.currentDistance;
+                    const z = -Math.cos(THREE.MathUtils.degToRad(this.targetBearing - this.compassHeading)) * t * this.currentDistance;
+                    const y = Math.sin(t * Math.PI) * 2; // Arc shape
+                    
+                    points.push(new THREE.Vector3(x, y, z));
+                }
+                
+                this.pathLine.geometry.setFromPoints(points);
             }
             
             triggerArrival() {
@@ -659,27 +985,64 @@
                 const arrivedMessage = document.getElementById('arrivedMessage');
                 arrivedMessage.style.display = 'block';
                 
-                // Play arrival sound
+                // Play celebration sound
                 if ('speechSynthesis' in window) {
-                    const utterance = new SpeechSynthesisUtterance('You have arrived at the restroom!');
+                    const utterance = new SpeechSynthesisUtterance('Congratulations! You have arrived at the restroom!');
+                    utterance.pitch = 1.2;
+                    utterance.rate = 1.1;
                     speechSynthesis.speak(utterance);
                 }
                 
-                // Hide arrival message after 5 seconds
+                // Fireworks effect in 3D
+                this.createFireworks();
+                
+                // Hide message after 6 seconds
                 setTimeout(() => {
                     arrivedMessage.style.display = 'none';
-                }, 5000);
+                }, 6000);
+            }
+            
+            createFireworks() {
+                const fireworksGeometry = new THREE.BufferGeometry();
+                const fireworksCount = 100;
+                const positions = new Float32Array(fireworksCount * 3);
+                const colors = new Float32Array(fireworksCount * 3);
+                
+                for (let i = 0; i < fireworksCount; i++) {
+                    positions[i * 3] = (Math.random() - 0.5) * 50;
+                    positions[i * 3 + 1] = Math.random() * 20 + 5;
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * 50;
+                    
+                    colors[i * 3] = Math.random();
+                    colors[i * 3 + 1] = Math.random();
+                    colors[i * 3 + 2] = Math.random();
+                }
+                
+                fireworksGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                fireworksGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                
+                const fireworksMaterial = new THREE.PointsMaterial({
+                    size: 3,
+                    transparent: true,
+                    opacity: 0.8,
+                    vertexColors: true
+                });
+                
+                const fireworks = new THREE.Points(fireworksGeometry, fireworksMaterial);
+                this.scene.add(fireworks);
+                
+                // Remove fireworks after 3 seconds
+                setTimeout(() => {
+                    this.scene.remove(fireworks);
+                }, 3000);
             }
             
             animate() {
                 if (!this.isActive) return;
                 
-                requestAnimationFrame(() => this.animate());
+                this.animationId = requestAnimationFrame(() => this.animate());
                 
-                // Update 3D objects
                 this.update3DObjects();
-                
-                // Render scene
                 this.renderer.render(this.scene, this.camera);
             }
             
@@ -688,15 +1051,39 @@
                 this.camera.updateProjectionMatrix();
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
             }
+            
+            stop() {
+                this.isActive = false;
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+                this.stopCamera();
+            }
         }
         
-        // Initialize AR system
-        const arLocator = new ARRestroomLocator();
+        // Initialize Enhanced AR system
+        const arLocator = new EnhancedARRestroomLocator();
         
-        // Global function for start button
-        function startAR() {
-            arLocator.startAR();
+        // Global functions
+        function startTracking() {
+            arLocator.startTracking();
         }
+        
+        function toggleCamera() {
+            arLocator.toggleCamera();
+        }
+        
+        function toggleMode() {
+            arLocator.toggleMode();
+        }
+        
+        // Auto-start location tracking on page load
+        window.addEventListener('load', () => {
+            // Small delay to ensure everything is loaded
+            setTimeout(() => {
+                startTracking();
+            }, 1000);
+        });
     </script>
 </body>
 </html>
